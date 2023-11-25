@@ -21,7 +21,7 @@ std::string toString(const T& t) {
 }
 
 template<class T>
-std::string toString(const Set<T>& s) {
+std::string toString(const UnorderedSet<T>& s) {
     std::stringstream ss;
     bool fFirstItem{ true };
 
@@ -41,7 +41,7 @@ std::string toString(const Set<T>& s) {
 }
 
 int main() {
-    Set<int> s1{ 1, 2, 3 }, s2{ 1, 2, 4 }, s3 = (s1 - s2) + (s2 - s1);
+    UnorderedSet<int> s1{ 1, 2, 3 }, s2{ 1, 2, 4 }, s3 = (s1 - s2) + (s2 - s1);
     auto n = (s1 + s2).count(1);
     std::cout << n << std::endl;
 

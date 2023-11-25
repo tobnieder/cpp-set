@@ -7,42 +7,66 @@
 //  Copyright (c) 2014 Antonio Seprano. All rights reserved.
 //
 
+#pragma once
+
 #include <algorithm>
+#include <concepts>
 #include <functional>
 #include <stdexcept>
 #include <utility>
 #include <vector>
 
-#ifndef _SET_HPP
-#define _SET_HPP
+// concepts
 
-template<class _T, class _Compare = std::less<_T>, class _Allocator = std::allocator<_T>>
-class Set {
+
+template<typename T>
+concept Equal = requires(T a, T b) {
+    { a == b } -> std::convertible_to<bool>;
+    { a != b } -> std::convertible_to<bool>;
+};
+
+template<typename T>
+concept SetElement = Equal<T>;
+
+//TODO: Ordered Set should only constrain teh element to be std::less orderable, e.g. >, not also ==, fix that by making an inner class, that just requires some sort of comparisons, and can be expressed using == or > !!
+
+// UnorderedSet
+
+template<SetElement _T, class _Allocator = std::allocator<_T>>
+class UnorderedSet {
 public:
     typedef _T value_type;
     typedef _Allocator allocator_type;
-    typedef _Compare value_compare;
 
 private:
-    typedef Set<value_type, value_compare, allocator_type> _SET;
+    typedef UnorderedSet<value_type, allocator_type> _SET;
 
 public:
     typedef typename std::vector<value_type, allocator_type>::iterator iterator;
     typedef typename std::vector<value_type, allocator_type>::const_iterator const_iterator;
 
-    // Empty set
-    Set(){};
+    /** Empty Unordered Set
+     * @brief Creates an Empty Unordered Set
+    */
+    UnorderedSet(){};
 
-    // Set with initializer list
-    Set(const std::initializer_list<value_type>& l) {
-        _set.reserve(l.size());
+    /** Filled Unordered Set
+     * @brief Creates an unordered set with initializer list
+     * @param list The initializer list of values
+    */
+    UnorderedSet(const std::initializer_list<value_type>& list) {
+        _set.reserve(list.size());
 
-        for (const auto& value : l) {
+        for (const auto& value : list) {
             insert(value);
         }
     }
 
-    Set(std::initializer_list<value_type>&& l) {
+    /** Filled UnorderedSet
+     * @brief Creates an unordered set with initializer list of moveable values
+     * @param list The initializer list of moveable values
+    */
+    UnorderedSet(std::initializer_list<value_type>&& l) {
         _set.reserve(l.size());
 
         for (auto& value : l) {
@@ -50,13 +74,16 @@ public:
         }
     }
 
-    // Copy constructor
-    Set(const _SET& s) {
+    /** Copy constructor
+     * @brief Copies a set, no deep copy is performed, so these are the same Sets, modifying one, modifies the other one!
+     * @param list The set to copy
+    */
+    UnorderedSet(const _SET& s) {
         _set = s._set;
     }
 
     // Move constructor
-    Set(_SET&& s) {
+    UnorderedSet(_SET&& s) {
         _set = std::move(s._set);
     }
 
@@ -100,9 +127,9 @@ public:
         _set.clear();
     }
 
-    iterator find(const value_type& value) noexcept {
+    virtual iterator find(const value_type& value) noexcept {
         for (auto it = _set.begin(); it != _set.end(); it++) {
-            if (!value_compare()(*it, value) && !value_compare()(value, *it)) {
+            if (*it == value) {
                 return it;
             }
         }
@@ -114,11 +141,11 @@ public:
         return (const_iterator) find(value);
     }
 
-    size_t count(const value_type& value) const noexcept {
+    virtual size_t count(const value_type& value) const noexcept {
         size_t ret{};
 
         for (const auto& v : _set) {
-            if (!value_compare()(v, value) && !value_compare()(value, v)) {
+            if (v == value) {
                 ret++;
             }
         }
@@ -158,29 +185,18 @@ public:
 
     // Insert new value
     // unique = true => values must be unique (no duplicate values allowed)
-    _SET& insert(const value_type& value, bool unique = false) noexcept {
+    virtual _SET& insert(const value_type& value, bool unique = false) noexcept {
         if (!unique || this->find(value) == _set.end()) {
-            auto it = begin();
-
-            while (it != end() && value_compare()(*it, value)) {
-                it++;
-            }
-
-            _set.insert(it, value);
+            _set.push_back(value);
         }
 
         return *this;
     }
 
-    _SET& insert(value_type&& value, bool unique = false) noexcept {
+    virtual _SET& insert(value_type&& value, bool unique = false) noexcept {
         if (!unique || find(value) == _set.end()) {
-            auto it = begin();
 
-            while (it != end() && value_compare()(*it, value)) {
-                it++;
-            }
-
-            _set.insert(it, std::move(value));
+            _set.push_back(std::move(value));
         }
 
         return *this;
@@ -270,8 +286,8 @@ public:
     }
 
 
-    Set<_SET> operator*(const _SET& other) noexcept {
-        Set<_SET> ret;
+    UnorderedSet<_SET> operator*(const _SET& other) noexcept {
+        UnorderedSet<_SET> ret;
 
         if (!this->empty() && !other.empty()) {
             for (const auto& v1 : _set) {
@@ -308,7 +324,7 @@ public:
         return contains(_SET{ value });
     }
 
-    bool contains(const _SET& s, bool strict = false) const noexcept {
+    virtual bool contains(const _SET& s, bool strict = false) const noexcept {
         if (strict) {
             return this->contains(s, false) && s.contains(*this, false);
         }
@@ -317,7 +333,7 @@ public:
             bool found{ false };
 
             for (const auto& v : _set) {
-                if (!value_compare()(value, v) && !value_compare()(v, value)) {
+                if (value == v) {
                     found = true;
                     break;
                 }
@@ -371,15 +387,11 @@ public:
         return ret;
     }
 
-    _SET& unique() noexcept {
+    virtual _SET& unique() noexcept {
         for (auto i = begin(); i != end(); i++) {
-            auto j = i + 1;
-
-            while (j != end()) {
-                if (!value_compare()(*i, *j) && !value_compare()(*j, *j)) {
+            for (auto j = i + 1; j != end(); j++) {
+                if (i == j) {
                     _set.erase(j);
-                } else {
-                    j++;
                 }
             }
         }
@@ -387,8 +399,8 @@ public:
         return *this;
     }
 
-    Set<_SET> combinations(int n) const noexcept {
-        Set<_SET> ret;
+    UnorderedSet<_SET> combinations(int n) const {
+        UnorderedSet<_SET> ret;
 
         if (n > _set.size()) {
             throw std::out_of_range("Value out of range for set combinations");
@@ -412,10 +424,10 @@ public:
         return ret;
     }
 
-
-private:
+public:
     std::vector<value_type, allocator_type> _set;
 
+private:
     bool _increase_counters(std::vector<int>& c) const noexcept {
         long int limit = _set.size() - 1;
         long int i = c.size() - 1;
@@ -442,4 +454,146 @@ private:
     }
 };
 
-#endif /* defined(_SET_HPP) */
+
+template<typename T>
+concept CompareFunction = std::is_function<T>::value && std::is_convertible<T, std::function<bool(T, T)>>::value;
+
+
+template<SetElement _T, CompareFunction _Compare = std::less<_T>, class _Allocator = std::allocator<_T>>
+class OrderedSet : public UnorderedSet<_T, _Allocator> {
+public:
+    typedef _T value_type;
+    typedef _Allocator allocator_type;
+    typedef _Compare value_compare;
+
+private:
+    typedef OrderedSet<value_type, value_compare, allocator_type> _SET;
+
+public:
+    typedef typename std::vector<value_type, allocator_type>::iterator iterator;
+    typedef typename std::vector<value_type, allocator_type>::const_iterator const_iterator;
+
+    /** Empty Set
+     * @brief Creates an Empty Set
+    */
+    OrderedSet(){};
+
+    /** Filled Set
+     * @brief Creates an set with initializer list
+     * @param list The initializer list of values
+    */
+    OrderedSet(const std::initializer_list<value_type>& list)
+        : UnorderedSet<_T, _Allocator>{ std::forward<value_type>(list) } { }
+
+    /** Filled Set
+     * @brief Creates an set with initializer list of moveable values
+     * @param list The initializer list of moveable values
+    */
+    OrderedSet(std::initializer_list<value_type>&& l) : UnorderedSet<_T, _Allocator>{ std::forward<value_type>(l) } { }
+
+    /** Copy constructor
+     * @brief Copies a set, no deep copy is performed, so these are the same Sets, modifying one, modifies the other one!
+     * @param list The set to copy
+    */
+    OrderedSet(const _SET& s) {
+        this->_set = s._set;
+    }
+
+    // Move constructor
+    OrderedSet(_SET&& s) {
+        this->_set = std::move(s._set);
+    }
+
+
+    iterator find(const value_type& value) noexcept override {
+        for (auto it = this->_set.begin(); it != this->_set.end(); it++) {
+            if (!value_compare()(*it, value) && !value_compare()(value, *it)) {
+                return it;
+            }
+        }
+
+        return this->_set.end();
+    }
+
+    size_t count(const value_type& value) const noexcept override {
+        size_t ret{};
+
+        for (const auto& v : this->_set) {
+            if (!value_compare()(v, value) && !value_compare()(value, v)) {
+                ret++;
+            }
+        }
+
+        return ret;
+    }
+
+    // Insert new value
+    // unique = true => values must be unique (no duplicate values allowed)
+    _SET& insert(const value_type& value, bool unique = false) noexcept override {
+        if (!unique || this->find(value) == this->_set.end()) {
+            auto it = this->begin();
+
+            while (it != this->end() && value_compare()(*it, value)) {
+                it++;
+            }
+
+            this->_set.insert(it, value);
+        }
+
+        return *this;
+    }
+
+    _SET& insert(value_type&& value, bool unique = false) noexcept override {
+        if (!unique || find(value) == this->_set.end()) {
+            auto it = this->begin();
+
+            while (it != this->end() && value_compare()(*it, value)) {
+                it++;
+            }
+
+            this->_set.insert(it, std::move(value));
+        }
+
+        return *this;
+    }
+
+    bool contains(const _SET& s, bool strict = false) const noexcept override {
+        if (strict) {
+            return this->contains(s, false) && s.contains(*this, false);
+        }
+
+        for (const auto& value : s) {
+            bool found{ false };
+
+            for (const auto& v : this->_set) {
+                if (!value_compare()(value, v) && !value_compare()(v, value)) {
+                    found = true;
+                    break;
+                }
+            }
+
+            if (!found) {
+                return false;
+            }
+        }
+
+
+        return true;
+    }
+
+    _SET& unique() noexcept override {
+        for (auto i = this->begin(); i != this->end(); i++) {
+            auto j = i + 1;
+
+            while (j != this->end()) {
+                if (!value_compare()(*i, *j) && !value_compare()(*j, *j)) {
+                    this->_set.erase(j);
+                } else {
+                    j++;
+                }
+            }
+        }
+
+        return *this;
+    }
+};
