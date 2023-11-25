@@ -2,12 +2,15 @@ Set
 ===
 
 Class for managing math sets, including inserting and removing items, sets union, complements, intersect and cartesian product.
-Code - now - is for C++11 only, but in future it should become c++98 compatible.
+Code only supports  >=C++23.
 
 ### Init
-Just include "Set.hpp" to your project and go on.
+Just include "set.hpp" to your project and go on.
 
 ### Create new Sets
+
+TODO change
+
 ```cpp
 #include "Set.hpp"
 
