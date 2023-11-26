@@ -12,11 +12,21 @@
 #include <algorithm>
 #include <concepts>
 #include <functional>
+#include <iostream>
+#include <ostream>
+#include <sstream>
 #include <stdexcept>
 #include <utility>
 #include <vector>
 
 // concepts
+
+
+//from https://www.reddit.com/r/cpp/comments/fblqwd/is_printable_check_if_a_value_is_printable_at/
+template<typename T>
+concept Printable = requires(T t) {
+    { std::cout << t } -> std::same_as<std::ostream&>;
+};
 
 
 template<typename T>
@@ -290,7 +300,6 @@ public:
     bool operator!=(const UnorderedSet<_T, OtherAlloc>& other) const noexcept {
         return !(*this == other);
     }
-
 
     template<typename Alloc2>
     UnorderedSet<_SET, Alloc2> operator*(const _SET& other) noexcept {
@@ -606,3 +615,34 @@ public:
         return *this;
     }
 };
+
+
+template<Printable T>
+std::string toString(const T& t) {
+    std::stringstream ss;
+    ss << t;
+    return ss.str();
+}
+
+template<Printable T, typename Allocator>
+std::ostream& operator<<(std::ostream& os, const UnorderedSet<T, Allocator>& set) {
+
+    bool firstItem{ true };
+
+    os << "{ ";
+
+    for (const auto& value : set) {
+        if (!firstItem) {
+            os << ", ";
+        } else {
+            firstItem = false;
+        }
+
+        os << toString(value);
+    }
+
+    os << " }";
+
+
+    return os;
+}

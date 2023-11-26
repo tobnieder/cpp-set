@@ -9,51 +9,28 @@
 
 #include "set.hpp"
 #include <iostream>
-#include <sstream>
-
-using std::string;
-
-template<class T>
-std::string toString(const T& t) {
-    std::stringstream ss;
-    ss << t;
-    return ss.str();
-}
-
-template<class T>
-std::string toString(const UnorderedSet<T>& s) {
-    std::stringstream ss;
-    bool fFirstItem{ true };
-
-    ss << "{";
-
-    for (const auto& value : s) {
-        if (!fFirstItem) {
-            ss << ",";
-        } else {
-            fFirstItem = false;
-        }
-
-        ss << toString(value);
-    }
-
-    return ss.str() + "}";
-}
 
 int main() {
     UnorderedSet<int> s1{ 1, 2, 3 }, s2{ 1, 2, 4 }, s3 = (s1 - s2) + (s2 - s1);
     auto n = (s1 + s2).count(1);
-    std::cout << n << std::endl;
+    std::cout << s1 << "\n";
+    std::cout << s2 << "\n";
+    std::cout << s3 << "\n";
+    std::cout << (s1 + s2) << "\n";
+    std::cout << "size: " << n << "\n";
 
 
     UnorderedSet<UnorderedSet<int>> nested{
         {1, 2, 3},
         {1, 2, 4}
     };
+
+    std::cout << nested << "\n";
+
     auto n2 = nested.count({ 1, 2, 4 });
-    std::cout << n2 << std::endl;
+    std::cout << "size: " << n2 << std::endl;
     auto n3 = nested.count({ 1, 2, 3 });
-    std::cout << n3 << std::endl;
+    std::cout << "size: " << n3 << std::endl;
 
     return 0;
 }
