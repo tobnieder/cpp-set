@@ -45,5 +45,15 @@ int main() {
     auto n = (s1 + s2).count(1);
     std::cout << n << std::endl;
 
+
+    UnorderedSet<UnorderedSet<int>> nested{
+        {1, 2, 3},
+        {1, 2, 4}
+    };
+    auto n2 = nested.count({ 1, 2, 4 });
+    std::cout << n2 << std::endl;
+    auto n3 = nested.count({ 1, 2, 3 });
+    std::cout << n3 << std::endl;
+
     return 0;
 }

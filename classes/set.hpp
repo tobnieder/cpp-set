@@ -28,11 +28,11 @@ concept Equal = requires(T a, T b) {
 template<typename T>
 concept SetElement = Equal<T>;
 
-//TODO: Ordered Set should only constrain teh element to be std::less orderable, e.g. >, not also ==, fix that by making an inner class, that just requires some sort of comparisons, and can be expressed using == or > !!
+//TODO: Ordered Set should only constrain the element to be std::less orderable, e.g. >, not also ==, fix that by making an inner class, that just requires some sort of comparisons, and can be expressed using == or > !!
 
 // UnorderedSet
 
-template<SetElement _T, class _Allocator = std::allocator<_T>>
+template<Equal _T, class _Allocator = std::allocator<_T>>
 class UnorderedSet {
 public:
     typedef _T value_type;
@@ -138,7 +138,7 @@ public:
     }
 
     const_iterator find(const value_type& value) const noexcept {
-        return (const_iterator) find(value);
+        return static_cast<const_iterator>(find(value));
     }
 
     virtual size_t count(const value_type& value) const noexcept {
@@ -152,14 +152,6 @@ public:
 
         return ret;
     }
-
-    bool operator==(const _SET& s) const noexcept {
-        return this->contains(s, false) && s.contains(*this, false);
-    }
-
-    bool operator!=(const _SET& s) const noexcept {
-        return !(*this == s);
-    };
 
     bool operator<(const _SET& s) const noexcept {
         if (size() != s.size()) {
@@ -285,8 +277,23 @@ public:
         return *this;
     }
 
+    template<typename OtherAlloc>
+    bool operator==(const UnorderedSet<_T, OtherAlloc>& other) const noexcept {
+        if (this->size() != other.size()) {
+            return false;
+        }
 
-    UnorderedSet<_SET> operator*(const _SET& other) noexcept {
+        return this->contains(other, true);
+    }
+
+    template<typename OtherAlloc>
+    bool operator!=(const UnorderedSet<_T, OtherAlloc>& other) const noexcept {
+        return !(*this == other);
+    }
+
+
+    template<typename Alloc2>
+    UnorderedSet<_SET, Alloc2> operator*(const _SET& other) noexcept {
         UnorderedSet<_SET> ret;
 
         if (!this->empty() && !other.empty()) {
@@ -324,7 +331,8 @@ public:
         return contains(_SET{ value });
     }
 
-    virtual bool contains(const _SET& s, bool strict = false) const noexcept {
+    template<typename OtherAlloc>
+    bool contains(const UnorderedSet<_T, OtherAlloc>& s, bool strict = false) const noexcept {
         if (strict) {
             return this->contains(s, false) && s.contains(*this, false);
         }
@@ -399,7 +407,8 @@ public:
         return *this;
     }
 
-    UnorderedSet<_SET> combinations(int n) const {
+    template<typename Alloc2>
+    UnorderedSet<_SET, Alloc2> combinations(int n) const {
         UnorderedSet<_SET> ret;
 
         if (n > _set.size()) {
