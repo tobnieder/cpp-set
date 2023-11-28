@@ -33,7 +33,7 @@ concept Printable = requires(T t) {
 // all selfmade templates
 
 template<typename T>
-concept HasOperatorCall = requires(T a, T b) { T(); };
+concept HasOperatorCall = requires() { T(); };
 
 template<typename T, typename _Compare>
 concept CompareFunction =
