@@ -16,8 +16,10 @@
 #include <ostream>
 #include <sstream>
 #include <stdexcept>
+#include <type_traits>
 #include <utility>
 #include <vector>
+
 
 // concepts
 
@@ -28,28 +30,43 @@ concept Printable = requires(T t) {
     { std::cout << t } -> std::same_as<std::ostream&>;
 };
 
+// all selfmade templates
 
 template<typename T>
-concept Equal = requires(T a, T b) {
-    { a == b } -> std::convertible_to<bool>;
-    { a != b } -> std::convertible_to<bool>;
+concept HasOperatorCall = requires(T a, T b) { T(); };
+
+template<typename T, typename _Compare>
+concept CompareFunction =
+        HasOperatorCall<_Compare> && (std::is_function<_Compare()>::value || std::is_invocable<_Compare()>::value)
+        && std::is_convertible<_Compare, std::function<bool(T, T)>>::value;
+
+template<typename _T>
+concept IsLiteralTrue = std::integral_constant<_T, true>::value;
+
+
+template<typename T, typename _Compare>
+concept SymmetricOp = CompareFunction<T, _Compare> && requires(T a, T b) {
+    { _Compare()(a, b) == _Compare()(b, a) } -> IsLiteralTrue<>;
 };
 
-template<typename T>
-concept SetElement = Equal<T>;
+template<typename T, typename _Compare>
+concept CompareFunctionInstance = CompareFunction<T, _Compare> && requires(T a, T b) {
+    { _Compare()(a, b) } -> std::convertible_to<bool>;
+};
 
-//TODO: Ordered Set should only constrain the element to be std::less orderable, e.g. >, not also ==, fix that by making an inner class, that just requires some sort of comparisons, and can be expressed using == or > !!
 
 // UnorderedSet
 
-template<Equal _T, class _Allocator = std::allocator<_T>>
+template<typename _T, typename _Compare = std::equal_to<_T>, class _Allocator = std::allocator<_T>>
+    requires CompareFunctionInstance<_T, _Compare> && SymmetricOp<_T, _Compare>
 class UnorderedSet {
 public:
     typedef _T value_type;
     typedef _Allocator allocator_type;
+    typedef _Compare _equal_compare;
 
 private:
-    typedef UnorderedSet<value_type, allocator_type> _SET;
+    typedef UnorderedSet<value_type, _Compare, allocator_type> _SET;
 
 public:
     typedef typename std::vector<value_type, allocator_type>::iterator iterator;
@@ -139,7 +156,7 @@ public:
 
     virtual iterator find(const value_type& value) noexcept {
         for (auto it = _set.begin(); it != _set.end(); it++) {
-            if (*it == value) {
+            if (_equal_compare()(*it, value)) {
                 return it;
             }
         }
@@ -155,7 +172,7 @@ public:
         size_t ret{};
 
         for (const auto& v : _set) {
-            if (v == value) {
+            if (_equal_compare()(v, value)) {
                 ret++;
             }
         }
@@ -187,7 +204,7 @@ public:
 
     // Insert new value
     // unique = true => values must be unique (no duplicate values allowed)
-    virtual _SET& insert(const value_type& value, bool unique = false) noexcept {
+    virtual _SET& insert(const value_type& value, bool unique = true) noexcept {
         if (!unique || this->find(value) == _set.end()) {
             _set.push_back(value);
         }
@@ -195,7 +212,7 @@ public:
         return *this;
     }
 
-    virtual _SET& insert(value_type&& value, bool unique = false) noexcept {
+    virtual _SET& insert(value_type&& value, bool unique = true) noexcept {
         if (!unique || find(value) == _set.end()) {
 
             _set.push_back(std::move(value));
@@ -350,7 +367,7 @@ public:
             bool found{ false };
 
             for (const auto& v : _set) {
-                if (value == v) {
+                if (_equal_compare()(value, v)) {
                     found = true;
                     break;
                 }
@@ -395,7 +412,7 @@ public:
         }
 
         for (auto it = _set.begin(); it != _set.end(); it++) {
-            if (*it == value) {
+            if (_equal_compare()(*it, value)) {
                 _set.erase(it);
                 ++ret;
             }
@@ -472,13 +489,18 @@ private:
     }
 };
 
+template<typename _Tp, CompareFunction<_Tp> _Compare>
+struct ComparatorEqual : public std::function<bool(_Tp, _Tp)> {
 
-template<typename T>
-concept CompareFunction = std::is_function<T>::value && std::is_convertible<T, std::function<bool(T, T)>>::value;
+    constexpr bool operator()(const _Tp& x, const _Tp& y) const {
+        return !_Compare(x, y) && !_Compare(y, x);
+    }
+};
 
 
-template<SetElement _T, CompareFunction _Compare = std::less<_T>, class _Allocator = std::allocator<_T>>
-class OrderedSet : public UnorderedSet<_T, _Allocator> {
+template<typename _T, CompareFunction<_T> _Compare = std::less<_T>, class _Allocator = std::allocator<_T>>
+    requires CompareFunctionInstance<_T, _Compare>
+class OrderedSet : public UnorderedSet<_T, ComparatorEqual<_T, _Compare>, _Allocator> {
 public:
     typedef _T value_type;
     typedef _Allocator allocator_type;
@@ -547,7 +569,7 @@ public:
 
     // Insert new value
     // unique = true => values must be unique (no duplicate values allowed)
-    _SET& insert(const value_type& value, bool unique = false) noexcept override {
+    _SET& insert(const value_type& value, bool unique = true) noexcept override {
         if (!unique || this->find(value) == this->_set.end()) {
             auto it = this->begin();
 
@@ -561,7 +583,7 @@ public:
         return *this;
     }
 
-    _SET& insert(value_type&& value, bool unique = false) noexcept override {
+    _SET& insert(value_type&& value, bool unique = true) noexcept override {
         if (!unique || find(value) == this->_set.end()) {
             auto it = this->begin();
 
