@@ -10,4 +10,14 @@ project(
     meson_version: '>=1.2.0',
 )
 
-executable('main', files('main.cpp'), include_directories: include_directories('classes'))
+inc_dirs = include_directories('classes')
+
+
+cpp_set_dep = declare_dependency(
+    include_directories: inc_dirs,
+    version: meson.project_version(),
+)
+
+executable('main', files('main.cpp'), include_directories: inc_dirs)
+
+subdir('tests')
