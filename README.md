@@ -1,6 +1,9 @@
 Set
 ===
 
+![Example Builds](https://github.com/tobnieder/cpp-set/actions/workflows/meson.yml/badge.svg)
+
+
 Class for managing math sets, including inserting and removing items, sets union, complements, intersect and cartesian product.
 Code only supports  >=C++23.
 
