@@ -45,14 +45,13 @@ jobs:
               if: matrix.config.os == 'windows-latest' && matrix.config.msvc == true
               uses: ilammy/msvc-dev-cmd@v1
               with:
-                  vsversion: 2023
+                  vsversion: 2022
 
             - name: Setup MinGW (Windows)
               if: matrix.config.os == 'windows-latest' && matrix.config.msvc == false
               uses: egor-tensin/setup-mingw@v2
               with:
                   platform: x64
-                  version: latest
 
             - name: Setup Clang (Linux)
               if: matrix.config.os == 'ubuntu-22.04' && matrix.config.use-clang == true
