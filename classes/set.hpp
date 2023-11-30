@@ -49,8 +49,10 @@ concept SymmetricOp = CompareFunction<T, _Compare> && requires(T a, T b) {
     { _Compare()(a, b) == _Compare()(b, a) } -> IsLiteralTrue<>;
 };
 
+// TODO: this doesn't seem to work correctly!
 template<typename T, typename _Compare>
 concept CompareFunctionInstance = CompareFunction<T, _Compare> && requires(T a, T b) {
+    _Compare()(a, b);
     { _Compare()(a, b) } -> std::convertible_to<bool>;
 };
 
@@ -154,7 +156,7 @@ public:
         _set.clear();
     }
 
-    virtual iterator find(const value_type& value) noexcept {
+    iterator find(const value_type& value) noexcept {
         for (auto it = _set.begin(); it != _set.end(); it++) {
             if (_equal_compare()(*it, value)) {
                 return it;
@@ -168,7 +170,7 @@ public:
         return static_cast<const_iterator>(find(value));
     }
 
-    virtual size_t count(const value_type& value) const noexcept {
+    size_t count(const value_type& value) const noexcept {
         size_t ret{};
 
         for (const auto& v : _set) {
@@ -204,7 +206,7 @@ public:
 
     // Insert new value
     // unique = true => values must be unique (no duplicate values allowed)
-    virtual _SET& insert(const value_type& value, bool unique = true) noexcept {
+    _SET& insert(const value_type& value, bool unique = true) noexcept {
         if (!unique || this->find(value) == _set.end()) {
             _set.push_back(value);
         }
@@ -212,7 +214,7 @@ public:
         return *this;
     }
 
-    virtual _SET& insert(value_type&& value, bool unique = true) noexcept {
+    _SET& insert(value_type&& value, bool unique = true) noexcept {
         if (!unique || find(value) == _set.end()) {
 
             _set.push_back(std::move(value));
@@ -421,7 +423,7 @@ public:
         return ret;
     }
 
-    virtual _SET& unique() noexcept {
+    _SET& unique() noexcept {
         for (auto i = begin(); i != end(); i++) {
             for (auto j = i + 1; j != end(); j++) {
                 if (i == j) {
@@ -489,16 +491,17 @@ private:
     }
 };
 
-template<typename _Tp, CompareFunction<_Tp> _Compare>
+template<typename _Tp, typename _Compare>
+    requires CompareFunction<_Tp, _Compare>
 struct ComparatorEqual : public std::function<bool(_Tp, _Tp)> {
 
     constexpr bool operator()(const _Tp& x, const _Tp& y) const {
-        return !_Compare(x, y) && !_Compare(y, x);
+        return !_Compare()(x, y) && !_Compare()(y, x);
     }
 };
 
 
-template<typename _T, CompareFunction<_T> _Compare = std::less<_T>, class _Allocator = std::allocator<_T>>
+template<typename _T, typename _Compare = std::less<_T>, class _Allocator = std::allocator<_T>>
     requires CompareFunctionInstance<_T, _Compare>
 class OrderedSet : public UnorderedSet<_T, ComparatorEqual<_T, _Compare>, _Allocator> {
 public:
@@ -523,13 +526,14 @@ public:
      * @param list The initializer list of values
     */
     OrderedSet(const std::initializer_list<value_type>& list)
-        : UnorderedSet<_T, _Allocator>{ std::forward<value_type>(list) } { }
+        : UnorderedSet<_T, ComparatorEqual<_T, _Compare>, _Allocator>{ list } { }
 
     /** Filled Set
      * @brief Creates an set with initializer list of moveable values
      * @param list The initializer list of moveable values
     */
-    OrderedSet(std::initializer_list<value_type>&& l) : UnorderedSet<_T, _Allocator>{ std::forward<value_type>(l) } { }
+    OrderedSet(std::initializer_list<value_type>&& l)
+        : UnorderedSet<_T, ComparatorEqual<_T, _Compare>, _Allocator>{ l } { }
 
     /** Copy constructor
      * @brief Copies a set, no deep copy is performed, so these are the same Sets, modifying one, modifies the other one!
@@ -545,7 +549,7 @@ public:
     }
 
 
-    iterator find(const value_type& value) noexcept override {
+    iterator find(const value_type& value) noexcept {
         for (auto it = this->_set.begin(); it != this->_set.end(); it++) {
             if (!value_compare()(*it, value) && !value_compare()(value, *it)) {
                 return it;
@@ -555,7 +559,7 @@ public:
         return this->_set.end();
     }
 
-    size_t count(const value_type& value) const noexcept override {
+    size_t count(const value_type& value) const noexcept {
         size_t ret{};
 
         for (const auto& v : this->_set) {
@@ -569,7 +573,7 @@ public:
 
     // Insert new value
     // unique = true => values must be unique (no duplicate values allowed)
-    _SET& insert(const value_type& value, bool unique = true) noexcept override {
+    _SET& insert(const value_type& value, bool unique = true) noexcept {
         if (!unique || this->find(value) == this->_set.end()) {
             auto it = this->begin();
 
@@ -583,7 +587,7 @@ public:
         return *this;
     }
 
-    _SET& insert(value_type&& value, bool unique = true) noexcept override {
+    _SET& insert(value_type&& value, bool unique = true) noexcept {
         if (!unique || find(value) == this->_set.end()) {
             auto it = this->begin();
 
@@ -597,7 +601,8 @@ public:
         return *this;
     }
 
-    bool contains(const _SET& s, bool strict = false) const noexcept override {
+    template<typename _OtherComp, typename OtherAlloc>
+    bool contains(const OrderedSet<_T, _OtherComp, OtherAlloc>& s, bool strict = false) const noexcept {
         if (strict) {
             return this->contains(s, false) && s.contains(*this, false);
         }
@@ -621,7 +626,8 @@ public:
         return true;
     }
 
-    _SET& unique() noexcept override {
+
+    _SET& unique() noexcept {
         for (auto i = this->begin(); i != this->end(); i++) {
             auto j = i + 1;
 
@@ -646,12 +652,36 @@ std::string toString(const T& t) {
     return ss.str();
 }
 
-template<Printable T, typename Allocator>
-std::ostream& operator<<(std::ostream& os, const UnorderedSet<T, Allocator>& set) {
+template<Printable T, typename C, typename Allocator>
+std::ostream& operator<<(std::ostream& os, const UnorderedSet<T, C, Allocator>& set) {
 
     bool firstItem{ true };
 
-    os << "{ ";
+    os << "UnorderedSet = { ";
+
+    for (const auto& value : set) {
+        if (!firstItem) {
+            os << ", ";
+        } else {
+            firstItem = false;
+        }
+
+        os << toString(value);
+    }
+
+    os << " }";
+
+
+    return os;
+}
+
+
+template<Printable T, typename C, typename Allocator>
+std::ostream& operator<<(std::ostream& os, const OrderedSet<T, C, Allocator>& set) {
+
+    bool firstItem{ true };
+
+    os << "OrderedSet = { ";
 
     for (const auto& value : set) {
         if (!firstItem) {

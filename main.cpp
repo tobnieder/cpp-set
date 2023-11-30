@@ -9,6 +9,12 @@
 
 #include "set.hpp"
 #include <iostream>
+#include <string>
+
+/* struct NotComparable {
+    int one;
+    std::string two;
+}; */
 
 int main() {
     UnorderedSet<int> s1{ 1, 2, 3 }, s2{ 1, 2, 4 }, s3 = (s1 - s2) + (s2 - s1);
@@ -19,10 +25,14 @@ int main() {
     std::cout << (s1 + s2) << "\n";
     std::cout << "size: " << n << "\n";
 
+    OrderedSet<int> os{ 6464, 1, 2, 3 };
+
+
+    std::cout << os << "\n";
 
     UnorderedSet<UnorderedSet<int>> nested{
-        {1, 2, 3},
-        {1, 2, 4}
+        { 7, 1, 2, 3 },
+        { 1, 2, 4 }
     };
 
     std::cout << nested << "\n";
@@ -31,6 +41,11 @@ int main() {
     std::cout << "size: " << n2 << std::endl;
     auto n3 = nested.count({ 1, 2, 3 });
     std::cout << "size: " << n3 << std::endl;
+
+
+    /*     UnorderedSet<NotComparable> shouldError{};
+
+    std::cout << shouldError; */
 
     return 0;
 }
