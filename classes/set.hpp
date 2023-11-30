@@ -104,7 +104,7 @@ public:
     }
 
     /** Copy constructor
-     * @brief Copies a set, no deep copy is performed, so these are the same Sets, modifying one, modifies the other one!
+     * @brief Copies a set, a deep copy is performed, depending on the input type, the behaviour depends on that, so don't expect anything, test if the expected behaviour is given!  
      * @param list The set to copy
     */
     UnorderedSet(const _SET& s) {
@@ -133,7 +133,7 @@ public:
     }
 
     const_iterator begin() const noexcept {
-        return _set.begin();
+        return _set.cbegin();
     }
 
     iterator end() noexcept {
@@ -141,7 +141,7 @@ public:
     };
 
     const_iterator end() const noexcept {
-        return _set.end();
+        return _set.cend();
     }
 
     size_t size() const noexcept {
@@ -435,8 +435,8 @@ public:
         return *this;
     }
 
-    template<typename Alloc2>
-    UnorderedSet<_SET, Alloc2> combinations(int n) const {
+    template<typename Compare2, typename Alloc2>
+    UnorderedSet<_SET, Compare2, Alloc2> combinations(int n) const {
         UnorderedSet<_SET> ret;
 
         if (n > _set.size()) {

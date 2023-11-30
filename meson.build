@@ -20,4 +20,9 @@ cpp_set_dep = declare_dependency(
 
 executable('main', files('main.cpp'), include_directories: inc_dirs)
 
-subdir('tests')
+
+if get_option('tests')
+    subdir('tests')
+endif
+
+
