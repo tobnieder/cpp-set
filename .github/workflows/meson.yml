@@ -19,10 +19,10 @@ jobs:
                       os: windows-latest
                       msvc: true
                       buildtype: release
-                    - name: Windows MingGW
-                      os: windows-latest
-                      msvc: false
-                      buildtype: release
+                    # - name: Windows MingGW
+                    #   os: windows-latest
+                    #   msvc: false
+                    #   buildtype: release
                     - name: Linux GCC
                       os: ubuntu-22.04
                       buildtype: release
@@ -45,6 +45,7 @@ jobs:
               if: matrix.config.os == 'windows-latest' && matrix.config.msvc == true
               uses: ilammy/msvc-dev-cmd@v1
               with:
+                  toolset: 19
                   vsversion: 2022
 
             - name: Setup MinGW (Windows)
