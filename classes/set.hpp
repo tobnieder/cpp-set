@@ -526,14 +526,25 @@ public:
      * @param list The initializer list of values
     */
     OrderedSet(const std::initializer_list<value_type>& list)
-        : UnorderedSet<_T, ComparatorEqual<_T, _Compare>, _Allocator>{ list } { }
+        : UnorderedSet<_T, ComparatorEqual<_T, _Compare>, _Allocator>{} {
+        this->_set.reserve(list.size());
+
+        for (const auto& value : list) {
+            insert(value);
+        }
+    }
 
     /** Filled Set
      * @brief Creates an set with initializer list of moveable values
      * @param list The initializer list of moveable values
     */
-    OrderedSet(std::initializer_list<value_type>&& l)
-        : UnorderedSet<_T, ComparatorEqual<_T, _Compare>, _Allocator>{ l } { }
+    OrderedSet(std::initializer_list<value_type>&& l) : UnorderedSet<_T, ComparatorEqual<_T, _Compare>, _Allocator>{} {
+        this->_set.reserve(l.size());
+
+        for (auto& value : l) {
+            insert(std::move(value));
+        }
+    }
 
     /** Copy constructor
      * @brief Copies a set, no deep copy is performed, so these are the same Sets, modifying one, modifies the other one!
