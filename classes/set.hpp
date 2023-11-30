@@ -116,6 +116,14 @@ public:
         _set = std::move(s._set);
     }
 
+    static _SET deepCopy(const _SET& s) {
+        _SET result{};
+        for (const auto& value : s) {
+            result.insert(value);
+        }
+        return result;
+    }
+
     // Copy assignment
     _SET& operator=(const _SET& s) noexcept {
         _set = s._set;
@@ -306,8 +314,8 @@ public:
         return *this;
     }
 
-    template<typename OtherAlloc>
-    bool operator==(const UnorderedSet<_T, OtherAlloc>& other) const noexcept {
+    template<typename OtherCompare>
+    bool operator==(const UnorderedSet<_T, OtherCompare>& other) const noexcept {
         if (this->size() != other.size()) {
             return false;
         }
@@ -315,13 +323,13 @@ public:
         return this->contains(other, true);
     }
 
-    template<typename OtherAlloc>
-    bool operator!=(const UnorderedSet<_T, OtherAlloc>& other) const noexcept {
+    template<typename OtherCompare, typename OtherAlloc>
+    bool operator!=(const UnorderedSet<_T, OtherCompare, OtherAlloc>& other) const noexcept {
         return !(*this == other);
     }
 
-    template<typename Alloc2>
-    UnorderedSet<_SET, Alloc2> operator*(const _SET& other) noexcept {
+    template<typename OtherCompare, typename OtherAlloc>
+    UnorderedSet<_SET, OtherCompare, OtherAlloc> operator*(const _SET& other) noexcept {
         UnorderedSet<_SET> ret;
 
         if (!this->empty() && !other.empty()) {
@@ -359,8 +367,7 @@ public:
         return contains(_SET{ value });
     }
 
-    template<typename OtherAlloc>
-    bool contains(const UnorderedSet<_T, OtherAlloc>& s, bool strict = false) const noexcept {
+    bool contains(const UnorderedSet<_T>& s, bool strict = false) const noexcept {
         if (strict) {
             return this->contains(s, false) && s.contains(*this, false);
         }
@@ -382,6 +389,74 @@ public:
 
 
         return true;
+    }
+
+
+    bool subseteq(const UnorderedSet<_T>& s) const noexcept {
+
+        if (*this == s) {
+            return true;
+        }
+
+        for (const auto& value : _set) {
+            bool found{ false };
+
+            for (const auto& v : s) {
+                if (_equal_compare()(value, v)) {
+                    found = true;
+                    break;
+                }
+            }
+
+            if (!found) {
+                return false;
+            }
+        }
+
+
+        return true;
+    }
+
+
+    bool subset(const UnorderedSet<_T>& s) const noexcept {
+        if (*this == s) {
+            return false;
+        }
+
+        return subseteq(s);
+    }
+
+    bool superseteq(const UnorderedSet<_T>& s) const noexcept {
+
+        if (*this == s) {
+            return true;
+        }
+
+        for (const auto& value : s) {
+            bool found{ false };
+
+            for (const auto& v : _set) {
+                if (_equal_compare()(value, v)) {
+                    found = true;
+                    break;
+                }
+            }
+
+            if (!found) {
+                return false;
+            }
+        }
+
+
+        return true;
+    }
+
+    bool superset(const UnorderedSet<_T>& s) const noexcept {
+        if (*this == s) {
+            return false;
+        }
+
+        return superset(s);
     }
 
     template<class InputIterator>
