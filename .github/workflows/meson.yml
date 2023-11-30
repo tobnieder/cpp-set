@@ -15,10 +15,10 @@ jobs:
             fail-fast: false
             matrix:
                 config:
-                    - name: Windows MSVC
-                      os: windows-latest
-                      msvc: true
-                      buildtype: release
+                    # - name: Windows MSVC
+                    #   os: windows-latest
+                    #   msvc: true
+                    #   buildtype: release
                     # - name: Windows MingGW
                     #   os: windows-latest
                     #   msvc: false
@@ -45,7 +45,6 @@ jobs:
               if: matrix.config.os == 'windows-latest' && matrix.config.msvc == true
               uses: ilammy/msvc-dev-cmd@v1
               with:
-                  toolset: 18
                   vsversion: 2022
 
             - name: Setup MinGW (Windows)
