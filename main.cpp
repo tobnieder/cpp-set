@@ -8,6 +8,7 @@
 //
 
 #include "set.hpp"
+#include <format>
 #include <iostream>
 #include <string>
 
@@ -29,18 +30,22 @@ int main() {
 
 
     std::cout << os << "\n";
+    std::cout << std::format("test formatting: {}\n", os);
 
     UnorderedSet<UnorderedSet<int>> nested{
         { 7, 1, 2, 3 },
         { 1, 2, 4 }
     };
 
+    std::cout << std::format("test formatting: {}\n", nested);
     std::cout << nested << "\n";
 
     auto n2 = nested.count({ 1, 2, 4 });
     std::cout << "size: " << n2 << std::endl;
     auto n3 = nested.count({ 1, 2, 3 });
     std::cout << "size: " << n3 << std::endl;
+
+    std::cout << std::format("test formatting: {}\n", n2);
 
 
     /*     UnorderedSet<NotComparable> shouldError{};

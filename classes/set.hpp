@@ -11,6 +11,7 @@
 
 #include <algorithm>
 #include <concepts>
+#include <format>
 #include <functional>
 #include <iostream>
 #include <ostream>
@@ -23,44 +24,47 @@
 
 // concepts
 
+namespace internals {
 
-//from https://www.reddit.com/r/cpp/comments/fblqwd/is_printable_check_if_a_value_is_printable_at/
-template<typename T>
-concept Printable = requires(T t) {
-    { std::cout << t } -> std::same_as<std::ostream&>;
-};
+    //from https://www.reddit.com/r/cpp/comments/fblqwd/is_printable_check_if_a_value_is_printable_at/
+    template<typename T>
+    concept Printable = requires(T t) {
+        { std::cout << t } -> std::same_as<std::ostream&>;
+    };
 
-// all selfmade templates
+    // all selfmade templates
 
-template<typename T>
-concept HasOperatorCall = requires() { T(); };
+    template<typename T>
+    concept HasOperatorCall = requires() { T(); };
 
-template<typename T, typename _Compare>
-concept CompareFunction =
-        HasOperatorCall<_Compare> && (std::is_function<_Compare()>::value || std::is_invocable<_Compare()>::value)
-        && std::is_convertible<_Compare, std::function<bool(T, T)>>::value;
+    template<typename T, typename _Compare>
+    concept CompareFunction =
+            HasOperatorCall<_Compare> && (std::is_function<_Compare()>::value || std::is_invocable<_Compare()>::value)
+            && std::is_convertible<_Compare, std::function<bool(T, T)>>::value;
 
-template<typename _T>
-concept IsLiteralTrue = std::integral_constant<_T, true>::value;
+    template<typename _T>
+    concept IsLiteralTrue = std::integral_constant<_T, true>::value;
 
 
-template<typename T, typename _Compare>
-concept SymmetricOp = CompareFunction<T, _Compare> && requires(T a, T b) {
-    { _Compare()(a, b) == _Compare()(b, a) } -> IsLiteralTrue<>;
-};
+    template<typename T, typename _Compare>
+    concept SymmetricOp = CompareFunction<T, _Compare> && requires(T a, T b) {
+        { _Compare()(a, b) == _Compare()(b, a) } -> IsLiteralTrue<>;
+    };
 
-// TODO: this doesn't seem to work correctly!
-template<typename T, typename _Compare>
-concept CompareFunctionInstance = CompareFunction<T, _Compare> && requires(T a, T b) {
-    _Compare()(a, b);
-    { _Compare()(a, b) } -> std::convertible_to<bool>;
-};
+    // TODO: this doesn't seem to work correctly!
+    template<typename T, typename _Compare>
+    concept CompareFunctionInstance = CompareFunction<T, _Compare> && requires(T a, T b) {
+        _Compare()(a, b);
+        { _Compare()(a, b) } -> std::convertible_to<bool>;
+    };
 
+
+} // namespace internals
 
 // UnorderedSet
 
 template<typename _T, typename _Compare = std::equal_to<_T>, class _Allocator = std::allocator<_T>>
-    requires CompareFunctionInstance<_T, _Compare> && SymmetricOp<_T, _Compare>
+    requires internals::CompareFunctionInstance<_T, _Compare> && internals::SymmetricOp<_T, _Compare>
 class UnorderedSet {
 public:
     typedef _T value_type;
@@ -566,19 +570,22 @@ private:
     }
 };
 
-template<typename _Tp, typename _Compare>
-    requires CompareFunction<_Tp, _Compare>
-struct ComparatorEqual : public std::function<bool(_Tp, _Tp)> {
 
-    constexpr bool operator()(const _Tp& x, const _Tp& y) const {
-        return !_Compare()(x, y) && !_Compare()(y, x);
-    }
-};
+namespace internals {
 
+    template<typename _Tp, typename _Compare>
+        requires internals::CompareFunction<_Tp, _Compare>
+    struct ComparatorEqual : public std::function<bool(_Tp, _Tp)> {
+
+        constexpr bool operator()(const _Tp& x, const _Tp& y) const {
+            return !_Compare()(x, y) && !_Compare()(y, x);
+        }
+    };
+} // namespace internals
 
 template<typename _T, typename _Compare = std::less<_T>, class _Allocator = std::allocator<_T>>
-    requires CompareFunctionInstance<_T, _Compare>
-class OrderedSet : public UnorderedSet<_T, ComparatorEqual<_T, _Compare>, _Allocator> {
+    requires internals::CompareFunctionInstance<_T, _Compare>
+class OrderedSet : public UnorderedSet<_T, internals::ComparatorEqual<_T, _Compare>, _Allocator> {
 public:
     typedef _T value_type;
     typedef _Allocator allocator_type;
@@ -601,7 +608,7 @@ public:
      * @param list The initializer list of values
     */
     OrderedSet(const std::initializer_list<value_type>& list)
-        : UnorderedSet<_T, ComparatorEqual<_T, _Compare>, _Allocator>{} {
+        : UnorderedSet<_T, internals::ComparatorEqual<_T, _Compare>, _Allocator>{} {
         this->_set.reserve(list.size());
 
         for (const auto& value : list) {
@@ -613,7 +620,8 @@ public:
      * @brief Creates an set with initializer list of moveable values
      * @param list The initializer list of moveable values
     */
-    OrderedSet(std::initializer_list<value_type>&& l) : UnorderedSet<_T, ComparatorEqual<_T, _Compare>, _Allocator>{} {
+    OrderedSet(std::initializer_list<value_type>&& l)
+        : UnorderedSet<_T, internals::ComparatorEqual<_T, _Compare>, _Allocator>{} {
         this->_set.reserve(l.size());
 
         for (auto& value : l) {
@@ -730,57 +738,146 @@ public:
     }
 };
 
+namespace internals {
 
-template<Printable T>
-std::string toString(const T& t) {
-    std::stringstream ss;
-    ss << t;
-    return ss.str();
-}
+    struct PrintOptions {
+        bool compact;
+        bool trailingSeparator;
+        std::string separator;
 
-template<Printable T, typename C, typename Allocator>
+        constexpr PrintOptions(bool compact = true, bool trailingSeparator = false, std::string separator = ",")
+            : compact{ compact },
+              trailingSeparator{ trailingSeparator },
+              separator{ separator } {
+            //
+        }
+    };
+
+
+    template<internals::Printable T, typename C, typename Allocator>
+    std::string set_to_string(const UnorderedSet<T, C, Allocator>& set, PrintOptions options = PrintOptions{}) {
+
+        std::stringstream ss;
+
+        const std::string space = options.compact ? "" : "\t";
+        const std::string elementSpacer = options.compact ? " " : "\n";
+
+        bool firstItem{ true };
+
+        if (set.size() == 0) {
+            ss << "{}";
+            return ss.str();
+        }
+
+        ss << "{" << elementSpacer;
+
+        for (const auto& value : set) {
+            if (!firstItem) {
+                ss << options.separator << elementSpacer;
+            } else {
+                firstItem = false;
+            }
+
+            ss << space << value;
+        }
+        if (options.trailingSeparator) {
+            ss << options.separator;
+        }
+        ss << elementSpacer << "}";
+
+
+        return ss.str();
+    }
+
+} // namespace internals
+
+template<internals::Printable T, typename C, typename Allocator>
 std::ostream& operator<<(std::ostream& os, const UnorderedSet<T, C, Allocator>& set) {
-
-    bool firstItem{ true };
-
-    os << "UnorderedSet = { ";
-
-    for (const auto& value : set) {
-        if (!firstItem) {
-            os << ", ";
-        } else {
-            firstItem = false;
-        }
-
-        os << toString(value);
-    }
-
-    os << " }";
-
-
+    os << internals::set_to_string(set);
     return os;
 }
 
 
-template<Printable T, typename C, typename Allocator>
+template<internals::Printable T, typename C, typename Allocator>
 std::ostream& operator<<(std::ostream& os, const OrderedSet<T, C, Allocator>& set) {
-
-    bool firstItem{ true };
-
-    os << "OrderedSet = { ";
-
-    for (const auto& value : set) {
-        if (!firstItem) {
-            os << ", ";
-        } else {
-            firstItem = false;
-        }
-
-        os << toString(value);
-    }
-
-    os << " }";
-
-
+    os << internals::set_to_string(set);
     return os;
 }
+
+
+/** @brief format for std::deque of formattable type
+ *  format options for this are
+ *  {:<flags>:<separator>}
+ * everything is optional, standard is {:cT:,}
+ * the flags section defines these arguments:
+ * cC: compact, print it compact, lower case is true, uppercase is false, the last specifier is taken
+ * tT: trailingSeparator, print a trailing separator, lower case is true, uppercase is false, the last specifier is taken
+ * separator: a string that is taken as separator
+*/
+
+
+template<typename T, typename C, typename Allocator, typename CharT>
+struct std::formatter<UnorderedSet<T, C, Allocator>, CharT> : std::formatter<std::string, CharT> {
+
+    internals::PrintOptions options{};
+
+
+    constexpr auto parse(std::format_parse_context& ctx) {
+        auto pos = ctx.begin();
+        std::array<std::string, 2> specifier{};
+        std::size_t array_idx = 0;
+        while (pos != ctx.end() && *pos != '}') {
+            if (*pos == ':') {
+                ++array_idx;
+                if (array_idx >= 2) {
+                    throw std::format_error("Format specifier can only have two specifiers!");
+                }
+                ++pos;
+                continue;
+            }
+            specifier.at(array_idx) += *pos;
+            ++pos;
+        }
+
+        for (const auto& c : specifier.at(0)) {
+            switch (c) {
+                case 'c':
+                    options.compact = true;
+                    break;
+                case 'C':
+                    options.compact = false;
+                    break;
+                case 't':
+                    options.trailingSeparator = true;
+                    break;
+                case 'T':
+                    options.trailingSeparator = false;
+                    break;
+                default:
+                    throw std::format_error("Unknown Format specifier in first section: allowed are 'cCtT'");
+            }
+        }
+
+        if (!specifier.at(1).empty()) {
+            options.separator = specifier.at(1);
+        }
+
+
+        if (*pos != '}') {
+            throw std::format_error("Format specifier doesn't end with '}'");
+        }
+        return pos;
+    }
+
+    auto format(const UnorderedSet<T, C, Allocator>& value, std::format_context& ctx) const {
+
+        return std::format_to(ctx.out(), "{}", internals::set_to_string(value, options));
+    }
+};
+
+template<typename T, typename C, typename Allocator, typename CharT>
+struct std::formatter<OrderedSet<T, C, Allocator>, CharT>
+    : std::formatter<UnorderedSet<T, internals::ComparatorEqual<T, C>, Allocator>, CharT> {
+
+    //
+};
