@@ -307,13 +307,13 @@ public:
     }
 
     _SET& operator-=(const value_type& value) noexcept {
-        _set.erase(value);
+        this->erase(value);
         return *this;
     }
 
     _SET& operator-=(const _SET& s) noexcept {
         for (const auto& value : s) {
-            _set.erase(value);
+            this->erase(value);
         }
         return *this;
     }
