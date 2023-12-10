@@ -27,10 +27,11 @@ jobs:
                       os: ubuntu-22.04
                       buildtype: release
                       use-clang: false
-                    - name: Linux Clang
-                      os: ubuntu-22.04
-                      buildtype: release
-                      use-clang: true
+                      #TODO enable after the issue with libclang_rt.profile-x86_64.a is fixed
+                    # - name: Linux Clang
+                    #   os: ubuntu-22.04
+                    #   buildtype: release
+                    #   use-clang: true
         steps:
             - uses: actions/checkout@v4
               with:
