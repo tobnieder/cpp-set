@@ -348,7 +348,7 @@ public:
     }
 
 
-    _SET intersectionWith(const _SET& s) noexcept {
+    _SET intersectionWith(_SET& s) noexcept {
         _SET s1, s2;
 
         if (s.size() <= size()) {
@@ -366,6 +366,26 @@ public:
 
         return s1;
     }
+
+    _SET intersectionWith(const _SET& s) const noexcept  {
+        _SET s1{}, s2{};
+
+        if (s.size() <= size()) {
+            s1 += s;
+            s2 += *this;
+        } else {
+            s1 += *this;
+            s2 += s;
+        }
+
+        for (const auto& v : s1) {
+            if (!s2.contains(v))
+                s1.erase(v);
+        }
+
+        return s1;
+    }
+
 
     bool contains(const value_type& value) const noexcept {
         return contains(_SET{ value });
